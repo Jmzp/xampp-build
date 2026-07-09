@@ -29,7 +29,7 @@ tclkit createstack.tcl buildTarball xamppunixinstaller80stack linux-x64
 tclkit createstack.tcl buildTarball xamppunixinstaller80stack osx-x64
 ```
 
-> NOTE: you can build other PHP versions (7.4.x, 8.0.x, or 8.1.x) replacing `80` with `74` or `81`.
+> NOTE: you can build other PHP versions (7.4.x, 8.0.x, 8.1.x, 8.2.x, 8.3.x, 8.4.x, or 8.5.x) replacing `80` with the matching id (`74`, `81`, `82`, `83`, `84`, `85`).
 
 Once the tarball is compressed, you can move it to the `/tmp/tarball` mounted directory to use it in the next step.
 
@@ -45,7 +45,7 @@ tclkit createstack.tcl pack xamppunixinstaller80stack osx-x64
 tclkit createstack.tcl pack xamppinstaller80stack windows-x64
 ```
 
-> NOTE: you can pack other PHP versions (7.4.x, 8.0.x, or 8.1.x) replacing `80` with `74` or `81`.
+> NOTE: you can pack other PHP versions (7.4.x, 8.0.x, 8.1.x, 8.2.x, 8.3.x, 8.4.x, or 8.5.x) replacing `80` with the matching id (`74`, `81`, `82`, `83`, `84`, `85`).
 
 The installers will be accessible at `/opt/installbuilder/output/`.
 

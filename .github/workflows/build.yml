@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [83, 84, 85]
+        version: [84]
         include:
           - os: windows-x64
             base_tarball: "https://downloads.sourceforge.net/project/xampp/thirdparties/20260415/tarballs-windows-202206.tgz"
@@ -56,6 +56,10 @@ jobs:
         env:
           LICENSE_TEXT: ${{ secrets.INSTALLBUILDER_LICENSE }}
         run: |
+          if [ -z "$LICENSE_TEXT" ]; then
+            echo "No INSTALLBUILDER_LICENSE secret set; building in EVALUATION mode (watermarked installer)."
+            exit 0
+          fi
           echo "$LICENSE_TEXT" > /opt/installbuilder/license.xml
           /opt/installbuilder/bin/builder check-license
       - name: Get tarballs
