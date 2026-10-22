@@ -28,7 +28,7 @@ keep them working unchanged.
 - [x] T2 Tcl components + `windows64XamppInstallerMultiStack` + `xamppinstallermultistack` + release notes — route: delegated writer (2+ non-trivial files)
 - [x] T3 Installer XML (`xampp-php-multi.xml`, `xampp-mysql-multi.xml`) + post-install (junctions, 11.8 init, relocation of all ini files) — route: delegated writer
 - [x] T4 Switcher `apps/xampp/multi/xampp-switch.ps1` + `.bat` (+ Pester tests if pwsh available) — route: delegated writer
-- [ ] T5 `build.sh multi` support + skill docs; build installer and inspect payload — route: delegated writer + build
+- [x] T5 `build.sh multi` support + skill docs — route: delegated writer (installer build itself pending, see below)
 
 ## Acceptance criteria
 - `build.sh multi windows-x64` produces `dist-local-multi-windows-x64/*.exe`.
@@ -84,5 +84,18 @@ keep them working unchanged.
 - The layout step copies xampp-switch.bat/.ps1 to the XAMPP root (shipped by xampp-common.xml).
 - Note: `core.autocrlf=input` stores the .bat with LF endings; it has no labels, so cmd runs it fine.
 
+### T5 evidence
+- `bash -n .claude/skills/xampp-build-installer/scripts/build.sh`: ok.
+- Extracted `ini_get` + multi input resolution/check from build.sh and ran them against the real
+  versions.ini and tarballs/windows: resolves php-8.2.35/8.3.30 (vs16), php-8.4.27/8.5.5 (vs17),
+  mariadb-10.11.16, mariadb-11.8.9 -> all present (exit 0); with one name altered -> clear
+  "missing input tarballs/windows/<zip>" error (exit 1).
+- Numeric keys keep the same versions.ini lookup (`ini_get PHP 84` -> 8.4.27), stack class and output dir.
+- NOT run: the full `build.sh multi windows-x64` pack (Rosetta crashes InstallBuilder on this Mac; Docker
+  settings must not be changed), so acceptance criteria "produces dist-local-multi-windows-x64/*.exe" and
+  "payload contains php-versions/... and mysql-versions/..." remain pending (CI or a QEMU-enabled Docker run).
+- Runtime test on Windows x64 (install, junctions, switcher, MariaDB 11.8 init) remains pending.
+
 ## Next step
-T5.
+Build the installer (GitHub Actions `build.yml` with `multi` or Docker with Rosetta disabled), inspect the
+payload, then test on a Windows x64 machine.
