@@ -36,7 +36,10 @@ keep them working unchanged.
 - Switcher refuses when target is a real directory; only removes junctions.
 
 ## Progress / Evidence
-- Branch `feat/xampp-multi-version` created from main (uncommitted PHP 8.4.27 bump left out of commits).
+- Branch `feat/xampp-multi-version` created from main; PHP 8.4.27 bump committed as b7bba38; branch pushed to origin (Jmzp/xampp-build).
+- Commits: T1 1d6e1c0, T2 94d8fe4, T3 61d5723, T4 50383d2, T5 d24bccf.
+- Native review: assess = high/review_due; preflight STATUS blocked on an intended-untracked selection input (schema undocumented) — review not run.
+- Parent spot check: `tclsh createstack.tcl getStackInstallerName xamppinstallermultistack windows-x64` -> xampp-windows-x64-multi-8.4.27-0-installer.exe.
 
 ### T2 evidence
 - Test-first exception: no runnable deterministic test harness exists for Tcl stacks / InstallBuilder XML /
