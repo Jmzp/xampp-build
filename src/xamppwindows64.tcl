@@ -1080,6 +1080,33 @@ proc ::xamppmulti::versionedRelocationList {content} {
     }
 }
 
+::itcl::class windowsXamppStandardMulti {
+    inherit windowsXamppStandardPhp84
+    constructor {environment} {
+	chain $environment
+    } {
+    }
+    # xampp/php and xampp/mysql are moved into php-versions/ and mysql-versions/ by
+    # windows64XamppMultiVersionsLayout, so their workspace entries no longer exist in the output
+    public method packSvnExport {} {
+	if {![info exists ::env(COMPRESSIONALGORITHM)] || ($::env(COMPRESSIONALGORITHM) != "zip")} {
+	    set exportFilelist [glob -nocomplain -tails -type f -directory [file join [$be cget -src] windowsXamppWorkspace] \
+		xampp/* xampp/*/* xampp/*/*/* xampp/*/*/*/* xampp/*/*/*/*/* xampp/*/*/*/*/*/* \
+		xampp/*/*/*/*/*/*/* xampp/*/*/*/*/*/*/*/* xampp/*/*/*/*/*/*/*/*/* xampp/*/*/*/*/*/*/*/*/*/* \
+		xampp/*/*/*/*/*/*/*/*/*/*/* xampp/*/*/*/*/*/*/*/*/*/*/*/* xampp/*/*/*/*/*/*/*/*/*/*/*/*/*]
+	    set exportFilelist [listFilter $exportFilelist [list *phpunit* xampp/php/* xampp/mysql/*]]
+
+	    set wd [pwd]
+	    cd [$be cget -output]
+	    eval logexec 7z a -tzip xampp-workspace-svn-export.zip $exportFilelist
+
+	    puts "RESULT FILE: \"[file join [pwd] xampp-workspace-svn-export.zip]\""
+
+	    cd $wd
+	}
+    }
+}
+
 ::itcl::class windows64XamppInstallerMultiStack {
     inherit windows64XamppInstallerPhp84Stack
        constructor {environment} {
@@ -1089,7 +1116,7 @@ proc ::xamppmulti::versionedRelocationList {content} {
            replaceComponent windows64XamppMariaDb {windows64XamppMariaDb1011Multi windows64XamppMariaDb118Multi}
            replaceComponent windowsXamppMysqlData windows64XamppMysqlData1011Multi
            replaceComponent windows64XamppPhp84 {windows64XamppPhp84Multi windows64XamppPhp82Multi windows64XamppPhp83Multi windows64XamppPhp85Multi}
-           replaceComponent windowsXamppStandardPhp84 {windows64XamppMultiVersionsLayout windowsXamppStandardPhp84}
+           replaceComponent windowsXamppStandardPhp84 {windows64XamppMultiVersionsLayout windowsXamppStandardMulti}
     }
 }
 

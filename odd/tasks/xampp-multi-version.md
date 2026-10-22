@@ -99,6 +99,10 @@ keep them working unchanged.
   "payload contains php-versions/... and mysql-versions/..." remain pending (CI or a QEMU-enabled Docker run).
 - Runtime test on Windows x64 (install, junctions, switcher, MariaDB 11.8 init) remains pending.
 
+### Build evidence
+- First `build.sh multi windows-x64` run aborted: `packSvnExport` 7z exited 1 because workspace entries xampp/php/* and xampp/mysql/* no longer exist in the output (moved by the layout step). Fixed with `windowsXamppStandardMulti` (filters them out).
+- Second run: `dist-local-multi-windows-x64/xampp-windows-x64-multi-8.4.27-0-installer.exe` (349 MB, InstallBuilder evaluation). Size consistent with single 8.4 (198 MB) + extra PHP/MariaDB zips; no full-tree duplication. Payload listing not inspected (no extractor for InstallBuilder exe here).
+
 ## Next step
 Build the installer (GitHub Actions `build.yml` with `multi` or Docker with Rosetta disabled), inspect the
 payload, then test on a Windows x64 machine.
