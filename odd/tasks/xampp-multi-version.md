@@ -26,7 +26,7 @@ keep them working unchanged.
 ## Tasks
 - [x] T1 Inputs + versions.ini (`82=8.2.35`, `[MariaDB] 11=11.8.9`) — route: inline (mechanical) — commit 1d6e1c0
 - [x] T2 Tcl components + `windows64XamppInstallerMultiStack` + `xamppinstallermultistack` + release notes — route: delegated writer (2+ non-trivial files)
-- [ ] T3 Installer XML (`xampp-php-multi.xml`, `xampp-mysql-multi.xml`) + post-install (junctions, 11.8 init, relocation of all ini files) — route: delegated writer
+- [x] T3 Installer XML (`xampp-php-multi.xml`, `xampp-mysql-multi.xml`) + post-install (junctions, 11.8 init, relocation of all ini files) — route: delegated writer
 - [ ] T4 Switcher `apps/xampp/multi/xampp-switch.ps1` + `.bat` (+ Pester tests if pwsh available) — route: delegated writer
 - [ ] T5 `build.sh multi` support + skill docs; build installer and inspect payload — route: delegated writer + build
 
@@ -55,5 +55,22 @@ keep them working unchanged.
 - `xamppinstallermultistack` overrides `createStack` so no base_tarballs.ini entry is needed.
 - Intermediate state: the stack is not packable until T3 swaps in the multi installer XML.
 
+### T3 evidence
+- `xmllint --noout apps/xampp/xampp-php-multi.xml apps/xampp/xampp-mysql-multi.xml`: ok.
+- `tclsh` parse check of src/xamppstacks.tcl: ok.
+- Scratch tclsh run of the `copyProjectFiles` substitutions on copies of xampp-common.xml and
+  xampp-installer-standalone.xml: excludeFiles gains `*/xampp/mysql-versions` and `*/xampp/php-versions`,
+  installerFilename becomes `xampp-windows-x64-multi-8.4.27-0-installer.exe`.
+- Design: the multi XML files keep the `xampp_php`/`xampp_mysql` component names and are shipped as
+  xampp-php.xml/xampp-mysql.xml, so every include and `component(...)` reference keeps working.
+- Junctions (`mklink /J`, relative paths, working dir `${installdir}`) are created in the folder
+  `<actionList>`, which runs after unpacking and before xampp-common's install.php post-install step.
+- Relocation of every branch's php.ini/my.ini: install.php through the versioned xamppbasic.inc (T2).
+- MariaDB 11.8 data: `mariadb-install-db.exe --datadir=<installdir>/mysql-versions/11.8/data` post-install
+  (root without password), copied to `backup/`; skipped when the data dir already exists.
+- Junction removal runs in postUninstallationActionList (`rmdir` without `/S`), after xampp-common's
+  pre-uninstall step stopped the services resolved through the junctions.
+- Runtime behaviour on Windows not verified (no Windows machine available).
+
 ## Next step
-T3.
+T4.

@@ -1,0 +1,62 @@
+<component>
+    <!--
+      Multi-version replacement for xampp-php.xml (shipped under that name by
+      xamppinstallermultistack). Every PHP branch is installed under
+      ${installdir}/php-versions/<major.minor> and ${installdir}/php is a directory
+      junction to the default branch, re-pointed later by xampp-switch.bat.
+      Keep the default branch in sync with ::xamppmulti in src/xamppwindows64.tcl.
+    -->
+    <name>xampp_php</name>
+    <description>PHP</description>
+    <canBeEdited>0</canBeEdited>
+    <show>1</show>
+    <selected>1</selected>
+
+
+    <folderList>
+        <folder>
+          <description>//XAMPP Files</description>
+          <destination>${installdir}/</destination>
+          <name>xampp_php_folder</name>
+          <distributionFileList>
+            <distributionDirectory origin="xampp/php-versions"/>
+          </distributionFileList>
+          <!-- Folder actions run right after the folder is unpacked, before any
+               postInstallationActionList: xampp-common.xml runs install/install.php
+               with ${installdir}/php/php.exe, so the junction must exist by then.
+               Relative paths avoid any slash conversion issue with mklink. -->
+          <actionList>
+            <runProgram>
+              <program>cmd.exe</program>
+              <programArguments>/C mklink /J php php-versions\8.4</programArguments>
+              <workingDirectory>${installdir}</workingDirectory>
+              <abortOnError>0</abortOnError>
+              <showMessageOnError>1</showMessageOnError>
+              <customErrorMessage>The ${installdir}\php junction could not be created. Run "mklink /J php php-versions\8.4" from ${installdir} (junctions require an NTFS drive).</customErrorMessage>
+              <ruleList>
+                <platformTest type="windows"/>
+                <fileExists path="${installdir}/php" negate="1"/>
+              </ruleList>
+            </runProgram>
+          </actionList>
+        </folder>
+    </folderList>
+    <postInstallationActionList>
+    </postInstallationActionList>
+    <!-- Remove the junction only after xampp-common.xml stopped the services
+         (they are resolved through it). rmdir without /S never deletes the
+         content of a real directory: it fails if the folder is not empty. -->
+    <postUninstallationActionList>
+        <runProgram>
+          <program>cmd.exe</program>
+          <programArguments>/C rmdir php</programArguments>
+          <workingDirectory>${installdir}</workingDirectory>
+          <abortOnError>0</abortOnError>
+          <showMessageOnError>0</showMessageOnError>
+          <ruleList>
+            <platformTest type="windows"/>
+            <fileExists path="${installdir}/php"/>
+          </ruleList>
+        </runProgram>
+    </postUninstallationActionList>
+</component>

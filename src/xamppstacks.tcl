@@ -596,6 +596,22 @@ return
     public method updateReleaseNotes {} {
         file copy -force [$be cget -projectDir]/apps/xampp/RELEASENOTES-multi-[$be cget -target] /tmp/RELEASENOTES-multi-[$be cget -target]
     }
+    public method copyProjectFiles {} {
+        chain
+        set output [$be cget -output]
+        # The multi-version components keep the xampp_php/xampp_mysql names, so
+        # they are shipped under the file names the other XML files include
+        file copy -force [$be cget -projectDir]/apps/xampp/xampp-php-multi.xml [file join $output xampp-php.xml]
+        file copy -force [$be cget -projectDir]/apps/xampp/xampp-mysql-multi.xml [file join $output xampp-mysql.xml]
+        # xampp_root (xampp-common.xml) ships xampp/* except the folders owned by
+        # other components: exclude the versioned folders as well
+        xampptcl::util::substituteParametersInFile [file join $output xampp-common.xml] \
+            [list {*/xampp/mysql;} {*/xampp/mysql;*/xampp/mysql-versions;} \
+                 {*/xampp/php;} {*/xampp/php;*/xampp/php-versions;}] 1
+        xampptcl::util::substituteParametersInFile [file join $output $projectFile] \
+            [list {<installerFilename>xampp-windows-x64-${product_version}-${xampp_vcredist_name}-installer.${platform_exec_suffix}</installerFilename>} \
+                 "<installerFilename>$installerName</installerFilename>"] 1
+    }
     public method preparefordist {} {
         # xampp/php only exists after installation (junction), take the ICU
         # libraries from the default PHP branch instead

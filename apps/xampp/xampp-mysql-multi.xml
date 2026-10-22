@@ -1,0 +1,107 @@
+<component>
+    <!--
+      Multi-version replacement for xampp-mysql.xml (shipped under that name by
+      xamppinstallermultistack). Every MariaDB branch is installed under
+      ${installdir}/mysql-versions/<major.minor>, each one with its own my.ini
+      and data directory, and ${installdir}/mysql is a directory junction to
+      the default branch, re-pointed later by xampp-switch.bat.
+      Keep the branch list in sync with ::xamppmulti in src/xamppwindows64.tcl.
+    -->
+    <name>xampp_mysql</name>
+    <description>MySQL</description>
+    <canBeEdited>1</canBeEdited>
+    <show>1</show>
+    <selected>1</selected>
+
+
+    <folderList>
+        <folder>
+          <description>//XAMPP Files</description>
+          <destination>${installdir}/</destination>
+          <name>xampp_mysql_folder</name>
+          <distributionFileList>
+            <distributionDirectory origin="xampp/mysql-versions"/>
+          </distributionFileList>
+          <!-- Same reasoning as xampp-php-multi.xml: create the junction as soon
+               as the files are unpacked, before any post-installation action -->
+          <actionList>
+            <runProgram>
+              <program>cmd.exe</program>
+              <programArguments>/C mklink /J mysql mysql-versions\10.11</programArguments>
+              <workingDirectory>${installdir}</workingDirectory>
+              <abortOnError>0</abortOnError>
+              <showMessageOnError>1</showMessageOnError>
+              <customErrorMessage>The ${installdir}\mysql junction could not be created. Run "mklink /J mysql mysql-versions\10.11" from ${installdir} (junctions require an NTFS drive).</customErrorMessage>
+              <ruleList>
+                <platformTest type="windows"/>
+                <fileExists path="${installdir}/mysql" negate="1"/>
+              </ruleList>
+            </runProgram>
+          </actionList>
+        </folder>
+    </folderList>
+    <postInstallationActionList>
+        <actionGroup>
+            <actionList>
+                <!-- MySQL fails on Windows with drives bigger than 2TB, refs #12403 -->
+                <getTotalDiskSpace path="${installdir}" units="GB" variable="totalDiskSpace" />
+                <foreach variables="mariadb_branch" values="10.11 11.8">
+                    <actionList>
+                        <setInstallerVariable name="mysql_configuration_file" value="${installdir}/mysql-versions/${mariadb_branch}/bin/my.ini"/>
+                        <iniFileSet file="${mysql_configuration_file}" key="innodb_flush_method" section="mysqld" value="normal" >
+                            <ruleList>
+                                <compareValues value1="${totalDiskSpace}" value2="2000" logic="greater" />
+                            </ruleList>
+                        </iniFileSet>
+                        <!-- Enable utf8mb4 encoding -->
+                        <configureUtf8mb4Encoding mysqlCfgFile="${mysql_configuration_file}"/>
+                    </actionList>
+                </foreach>
+                <!-- Keep the variable pointing to the active branch, as xampp-mysql.xml does -->
+                <setInstallerVariable name="mysql_configuration_file" value="${installdir}/mysql/bin/my.ini"/>
+
+                <!-- There is no prebuilt MariaDB 11.x data directory: initialize an
+                     empty one (root user without password, like the bundled 10.11
+                     data) and keep a pristine copy in backup/ as XAMPP does -->
+                <actionGroup>
+                    <actionList>
+                        <runProgram>
+                            <program>${installdir}/mysql-versions/11.8/bin/mariadb-install-db.exe</program>
+                            <programArguments>"--datadir=${installdir.unix}/mysql-versions/11.8/data"</programArguments>
+                            <workingDirectory>${installdir}/mysql-versions/11.8</workingDirectory>
+                            <abortOnError>0</abortOnError>
+                            <showMessageOnError>1</showMessageOnError>
+                            <customErrorMessage>The MariaDB 11.8 data directory could not be initialized. Run "bin\mariadb-install-db.exe --datadir=data" from ${installdir}\mysql-versions\11.8 before switching to it.</customErrorMessage>
+                        </runProgram>
+                        <copyFile origin="${installdir}/mysql-versions/11.8/data" destination="${installdir}/mysql-versions/11.8/backup" abortOnError="0" showMessageOnError="0">
+                            <ruleList>
+                                <fileExists path="${installdir}/mysql-versions/11.8/data"/>
+                                <fileExists path="${installdir}/mysql-versions/11.8/backup" negate="1"/>
+                            </ruleList>
+                        </copyFile>
+                    </actionList>
+                    <ruleList>
+                        <fileExists path="${installdir}/mysql-versions/11.8/data" negate="1"/>
+                    </ruleList>
+                </actionGroup>
+            </actionList>
+            <ruleList>
+                <platformTest type="windows" />
+            </ruleList>
+        </actionGroup>
+    </postInstallationActionList>
+    <!-- See xampp-php-multi.xml: rmdir without /S only removes the junction -->
+    <postUninstallationActionList>
+        <runProgram>
+          <program>cmd.exe</program>
+          <programArguments>/C rmdir mysql</programArguments>
+          <workingDirectory>${installdir}</workingDirectory>
+          <abortOnError>0</abortOnError>
+          <showMessageOnError>0</showMessageOnError>
+          <ruleList>
+            <platformTest type="windows"/>
+            <fileExists path="${installdir}/mysql"/>
+          </ruleList>
+        </runProgram>
+    </postUninstallationActionList>
+</component>
