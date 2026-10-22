@@ -27,7 +27,7 @@ keep them working unchanged.
 - [x] T1 Inputs + versions.ini (`82=8.2.35`, `[MariaDB] 11=11.8.9`) — route: inline (mechanical) — commit 1d6e1c0
 - [x] T2 Tcl components + `windows64XamppInstallerMultiStack` + `xamppinstallermultistack` + release notes — route: delegated writer (2+ non-trivial files)
 - [x] T3 Installer XML (`xampp-php-multi.xml`, `xampp-mysql-multi.xml`) + post-install (junctions, 11.8 init, relocation of all ini files) — route: delegated writer
-- [ ] T4 Switcher `apps/xampp/multi/xampp-switch.ps1` + `.bat` (+ Pester tests if pwsh available) — route: delegated writer
+- [x] T4 Switcher `apps/xampp/multi/xampp-switch.ps1` + `.bat` (+ Pester tests if pwsh available) — route: delegated writer
 - [ ] T5 `build.sh multi` support + skill docs; build installer and inspect payload — route: delegated writer + build
 
 ## Acceptance criteria
@@ -72,5 +72,17 @@ keep them working unchanged.
   pre-uninstall step stopped the services resolved through the junctions.
 - Runtime behaviour on Windows not verified (no Windows machine available).
 
+### T4 evidence
+- `pwsh` is not installed on this Mac: no Pester tests and no PowerShell parse check were run (test-first
+  exception); the script targets Windows PowerShell 5.1 and was reviewed manually.
+- `tclsh` parse check of src/xamppwindows64.tcl after adding `copySwitcher`: ok.
+- Behaviour: validates the version against the installed folders, refuses when xampp\php or xampp\mysql is
+  a real folder, refuses to switch MariaDB to a branch without `data\`, stops Apache/MySQL with the XAMPP stop
+  scripts and waits for httpd/mysqld/mariadbd to exit, removes only the junction
+  (`[IO.Directory]::Delete(path, $false)`), creates the new one with `New-Item -ItemType Junction`, copies the
+  active PHP `icu*.dll`/`libsasl.dll` into apache\bin and prints `php -v` / `mariadbd --version`.
+- The layout step copies xampp-switch.bat/.ps1 to the XAMPP root (shipped by xampp-common.xml).
+- Note: `core.autocrlf=input` stores the .bat with LF endings; it has no labels, so cmd runs it fine.
+
 ## Next step
-T4.
+T5.

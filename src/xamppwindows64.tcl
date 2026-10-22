@@ -1041,6 +1041,7 @@ proc ::xamppmulti::versionedRelocationList {content} {
         copyDefaultPhpRuntimeLibraries
         removeDuplicatedSqliteLoadFile
         writeVersionedRelocationList
+        copySwitcher
     }
     protected method mergeSharedPhpAddons {} {
         set staging [file join $xamppoutputdir php]
@@ -1070,6 +1071,12 @@ proc ::xamppmulti::versionedRelocationList {content} {
     protected method writeVersionedRelocationList {} {
         set incFile [file join $xamppoutputdir install xamppbasic.inc]
         xampptcl::file::write $incFile [::xamppmulti::versionedRelocationList [xampptcl::file::read $incFile]]
+    }
+    # xampp-switch.bat/.ps1 go to the XAMPP root, shipped by xampp-common.xml
+    protected method copySwitcher {} {
+        foreach f {xampp-switch.bat xampp-switch.ps1} {
+            file copy -force [file join [$be cget -projectDir] apps xampp multi $f] [file join $xamppoutputdir $f]
+        }
     }
 }
 
