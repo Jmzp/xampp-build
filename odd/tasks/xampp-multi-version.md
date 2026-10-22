@@ -24,8 +24,8 @@ keep them working unchanged.
   before the commit that crosses the budget.
 
 ## Tasks
-- [ ] T1 Inputs + versions.ini (`82=8.2.35`, `[MariaDB] 11=11.8.9`) — route: inline (mechanical)
-- [ ] T2 Tcl components + `windows64XamppInstallerMultiStack` + `xamppinstallermultistack` + release notes — route: delegated writer (2+ non-trivial files)
+- [x] T1 Inputs + versions.ini (`82=8.2.35`, `[MariaDB] 11=11.8.9`) — route: inline (mechanical) — commit 1d6e1c0
+- [x] T2 Tcl components + `windows64XamppInstallerMultiStack` + `xamppinstallermultistack` + release notes — route: delegated writer (2+ non-trivial files)
 - [ ] T3 Installer XML (`xampp-php-multi.xml`, `xampp-mysql-multi.xml`) + post-install (junctions, 11.8 init, relocation of all ini files) — route: delegated writer
 - [ ] T4 Switcher `apps/xampp/multi/xampp-switch.ps1` + `.bat` (+ Pester tests if pwsh available) — route: delegated writer
 - [ ] T5 `build.sh multi` support + skill docs; build installer and inspect payload — route: delegated writer + build
@@ -38,5 +38,22 @@ keep them working unchanged.
 ## Progress / Evidence
 - Branch `feat/xampp-multi-version` created from main (uncommitted PHP 8.4.27 bump left out of commits).
 
+### T2 evidence
+- Test-first exception: no runnable deterministic test harness exists for Tcl stacks / InstallBuilder XML /
+  PowerShell in this repo; proportional checks used instead.
+- `tclsh` `info complete` parse check: src/xamppwindows64.tcl ok, src/xamppstacks.tcl ok.
+- Scratch tclsh check of the `::xamppmulti` helper procs (relocation list rewrite: 47 php + 1 mysql entries
+  expanded to 190 versioned lines, no junction entries left; staging/merge/move; LoadFile de-duplication): ok.
+- `tclsh createstack.tcl getStackInstallerName xamppinstallermultistack windows-x64` ->
+  `xampp-windows-x64-multi-8.4.27-0-installer.exe`.
+- `tclsh createstack.tcl logComponents xamppinstallermultistack windows-x64` resolves every component:
+  MariaDB 10.11.16 + 11.8.9, PHP 8.4.27/8.2.35/8.3.30/8.5.5, layout step before `xampp` (standard).
+- Design: each versioned component builds into xampp/php or xampp/mysql exactly like its single-version parent
+  and is then moved to `php-versions/<branch>` / `mysql-versions/<branch>`; shared PHP add-ons are staged in
+  xampp/php and merged into every branch by `windows64XamppMultiVersionsLayout`, which also rewrites
+  `install/xamppbasic.inc` so install.php relocates each branch's files once (junction entries dropped).
+- `xamppinstallermultistack` overrides `createStack` so no base_tarballs.ini entry is needed.
+- Intermediate state: the stack is not packable until T3 swaps in the multi installer XML.
+
 ## Next step
-T1.
+T3.

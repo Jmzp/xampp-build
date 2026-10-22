@@ -565,6 +565,54 @@ return
     }
 }
 
+# XAMPP Installer - multi-version (Windows x64 only)
+# Bundles PHP 8.2/8.3/8.4/8.5 and MariaDB 10.11/11.8 side by side, see
+# windows64XamppInstallerMultiStack in xamppwindows64.tcl. PHP 8.4 is the
+# default branch, so it drives the version, revision and VC runtime.
+::itcl::class xamppinstallermultistack {
+    inherit xamppinstallerstack
+    constructor {environment} {
+        chain $environment
+        set version [::xampp::php::getXAMPPVersion 84]
+        set rev [::xampp::php::getXAMPPRevision 84]
+        set application ::xampp::php84
+        set xampp_vcredist_name VS17
+    } {
+        set installerName xampp-windows-x64-multi-${version}-${rev}-installer.exe
+    }
+    public method getBaseNameForPlatform {} {
+        return XamppInstallerMultiStack
+    }
+    # Same as product::createStack but without requiring an entry in
+    # metadata/versions/base_tarballs.ini: this stack has no base tarball
+    public method createStack {} {
+        if {[$this cget -stack]=="<undefined>"} {
+            set stack [createObject [getFullNameForPlatform] $be]
+        }
+    }
+    protected method shipReleaseNotes {} {
+        file copy -force /tmp/RELEASENOTES-multi-[$be cget -target] [$be cget -output]/RELEASENOTES
+    }
+    public method updateReleaseNotes {} {
+        file copy -force [$be cget -projectDir]/apps/xampp/RELEASENOTES-multi-[$be cget -target] /tmp/RELEASENOTES-multi-[$be cget -target]
+    }
+    public method preparefordist {} {
+        # xampp/php only exists after installation (junction), take the ICU
+        # libraries from the default PHP branch instead
+        set xamppDir [file join [$be cget -output] xampp]
+        foreach f [glob -nocomplain [file join $xamppDir php-versions [::xamppmulti::defaultPhpBranch] icu*.dll]] {
+            file copy -force $f [file join $xamppDir apache bin]
+        }
+        if {[$be cget -target] == "windows"} {
+            $be configure -setvars "[$be cget -setvars] bitnamisettings_windowsxp_support=0"
+            file copy -force [$be cget -output]/RELEASENOTES [file join [$be cget -output] "xampp"]
+        }
+    }
+    public method supportedPlatforms {} {
+        return {windows-x64}
+    }
+}
+
 # XAMPP Unix Installer
 # Windows and Unix platforms are too different. It is better to have a different class
 ::itcl::class xamppunixinstallerXstack {

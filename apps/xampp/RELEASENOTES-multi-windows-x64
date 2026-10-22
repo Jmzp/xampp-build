@@ -1,0 +1,23 @@
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+[2026-10-21] XAMPP for Windows multi-version 8.4.27-0
+This version of XAMPP contains the following software releases:
+   - Apache 2.4.65
+   - MariaDB 10.11.16 (default)
+   - MariaDB 11.8.9
+   - OpenSSL 3.5.1
+   - PHP 8.2.35
+   - PHP 8.3.30
+   - PHP 8.4.27 (default)
+   - PHP 8.5.5
+   - phpMyAdmin 5.2.3
+   - Tomcat 8.5.99
+   - curl 8.19.0
+
+All PHP and MariaDB versions are installed side by side under
+xampp\php-versions and xampp\mysql-versions. xampp\php and xampp\mysql are
+directory junctions to the active versions; use xampp-switch.bat to change
+them (for example "xampp-switch php 8.3" or "xampp-switch mysql 11.8").
+Each MariaDB version keeps its own data directory.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

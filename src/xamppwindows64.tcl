@@ -786,6 +786,306 @@
     }
 }
 
+# ---------------------------------------------------------------------------
+# Multi-version installer (windows64XamppInstallerMultiStack)
+#
+# Bundles several PHP and MariaDB branches side by side:
+#   xampp/php-versions/<major.minor>    one folder per PHP branch
+#   xampp/mysql-versions/<major.minor>  one folder per MariaDB branch
+# The payload does not contain xampp/php nor xampp/mysql: they are NTFS
+# directory junctions created at install time (apps/xampp/xampp-php-multi.xml
+# and apps/xampp/xampp-mysql-multi.xml) and re-pointed by xampp-switch.
+# Every existing configuration keeps using \xampp\php and \xampp\mysql.
+#
+# Each versioned component is built exactly like its single-version parent
+# (into xampp/php or xampp/mysql) and then moved to its versioned folder, so
+# all the existing install logic (php.ini substitutions, workspace files...)
+# is reused unchanged.
+# ---------------------------------------------------------------------------
+
+namespace eval ::xamppmulti {
+    # Keep these lists in sync with apps/xampp/xampp-php-multi.xml,
+    # apps/xampp/xampp-mysql-multi.xml and apps/xampp/multi/xampp-switch.ps1
+    variable phpBranches {8.2 8.3 8.4 8.5}
+    variable defaultPhpBranch 8.4
+    variable mariadbBranches {10.11 11.8}
+    variable defaultMariaDbBranch 10.11
+}
+
+# 8.4.27 -> 8.4, 10.11.16 -> 10.11
+proc ::xamppmulti::branch {version} {
+    return [join [lrange [split $version .] 0 1] .]
+}
+
+proc ::xamppmulti::defaultPhpBranch {} {
+    variable defaultPhpBranch
+    return $defaultPhpBranch
+}
+
+proc ::xamppmulti::defaultMariaDbBranch {} {
+    variable defaultMariaDbBranch
+    return $defaultMariaDbBranch
+}
+
+# Moves xampp/<dirName> (php or mysql) to xampp/<dirName>-versions/<branch>
+proc ::xamppmulti::moveToVersionsDir {xamppoutputdir dirName version} {
+    variable phpBranches
+    variable mariadbBranches
+    set branch [branch $version]
+    set knownBranches [expr {$dirName == "php" ? $phpBranches : $mariadbBranches}]
+    if {[lsearch -exact $knownBranches $branch] == -1} {
+        error "$dirName $version does not belong to any multi-version branch ($knownBranches)"
+    }
+    set versionsDir [file join $xamppoutputdir ${dirName}-versions]
+    set dest [file join $versionsDir $branch]
+    file mkdir $versionsDir
+    file delete -force $dest
+    file rename [file join $xamppoutputdir $dirName] $dest
+    return $dest
+}
+
+# Returns 1 if the directory tree contains at least one file
+proc ::xamppmulti::containsFiles {dir} {
+    if {[llength [glob -nocomplain -types f -directory $dir *]] > 0 \
+            || [llength [glob -nocomplain -types {f hidden} -directory $dir *]] > 0} {
+        return 1
+    }
+    foreach subdir [glob -nocomplain -types d -directory $dir *] {
+        if {[containsFiles $subdir]} {
+            return 1
+        }
+    }
+    return 0
+}
+
+# Copies the content of src into dest, overwriting existing files (same
+# semantics as the add-on components copying on top of a PHP folder)
+proc ::xamppmulti::mergeDirectory {src dest} {
+    file mkdir $dest
+    set entries [lsort -unique [concat \
+        [glob -nocomplain -tails -directory $src *] \
+        [glob -nocomplain -tails -types hidden -directory $src *]]]
+    foreach entry $entries {
+        if {$entry == "." || $entry == ".."} {
+            continue
+        }
+        set from [file join $src $entry]
+        set to [file join $dest $entry]
+        if {[file isdirectory $from]} {
+            mergeDirectory $from $to
+        } else {
+            file copy -force $from $to
+        }
+    }
+}
+
+# The shared PHP add-on components (extras, PEAR, ADODB) write into xampp/php
+# after all PHP branches have been moved away. xampp/php is kept as an
+# (initially empty) staging folder for them and merged into every branch by
+# windows64XamppMultiVersionsLayout.
+proc ::xamppmulti::preparePhpInstall {srcDir outputDir} {
+    # All PHP zips are extracted to the same folder, start from a clean one
+    file delete -force [file join $srcDir windowsXamppPhp]
+    set staging [file join $outputDir xampp php]
+    if {[file exists $staging]} {
+        if {[containsFiles $staging]} {
+            error "Unexpected files in $staging: PHP add-ons must be installed after every multi-version PHP component"
+        }
+        file delete -force $staging
+    }
+}
+
+proc ::xamppmulti::finishPhpInstall {xamppoutputdir version} {
+    moveToVersionsDir $xamppoutputdir php $version
+    # Folders the add-on components expect to exist
+    file mkdir [file join $xamppoutputdir php extras]
+}
+
+# Rewrites install/xamppbasic.inc (the list of files install/install.php
+# relocates) so every entry under \php\ and \mysql\ is listed once per branch
+# under \php-versions\<branch>\ and \mysql-versions\<branch>\ instead. The
+# junction paths are dropped so the active branch is not relocated twice.
+proc ::xamppmulti::versionedRelocationList {content} {
+    variable phpBranches
+    variable mariadbBranches
+    set result {}
+    foreach line [split $content \n] {
+        if {[regexp {^(.*"\$partwampp\\)(php|mysql)(\\.*)$} $line -> head dir tail]} {
+            set branches [expr {$dir == "php" ? $phpBranches : $mariadbBranches}]
+            foreach b $branches {
+                # "\\" before the branch: PHP would read "\10" or "\11" as octal escapes
+                lappend result "${head}${dir}-versions\\\\${b}${tail}"
+            }
+        } else {
+            lappend result $line
+        }
+    }
+    return [join $result \n]
+}
+
+::itcl::class windows64XamppPhp82Multi {
+  inherit windows64XamppPhp82
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        ::xamppmulti::preparePhpInstall [$be cget -src] [$be cget -output]
+        chain
+        ::xamppmulti::finishPhpInstall $xamppoutputdir $version
+    }
+}
+
+::itcl::class windows64XamppPhp83Multi {
+  inherit windows64XamppPhp83
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        ::xamppmulti::preparePhpInstall [$be cget -src] [$be cget -output]
+        chain
+        ::xamppmulti::finishPhpInstall $xamppoutputdir $version
+    }
+}
+
+::itcl::class windows64XamppPhp84Multi {
+  inherit windows64XamppPhp84
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        ::xamppmulti::preparePhpInstall [$be cget -src] [$be cget -output]
+        chain
+        ::xamppmulti::finishPhpInstall $xamppoutputdir $version
+    }
+}
+
+::itcl::class windows64XamppPhp85Multi {
+  inherit windows64XamppPhp85
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        ::xamppmulti::preparePhpInstall [$be cget -src] [$be cget -output]
+        chain
+        ::xamppmulti::finishPhpInstall $xamppoutputdir $version
+    }
+}
+
+::itcl::class windows64XamppMariaDb1011Multi {
+  inherit windows64XamppMariaDb
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        chain
+        ::xamppmulti::moveToVersionsDir $xamppoutputdir mysql $version
+    }
+}
+
+# No prebuilt 11.x data directory exists: it is initialized at install time
+# with mariadb-install-db.exe (see apps/xampp/xampp-mysql-multi.xml)
+::itcl::class windows64XamppMariaDb118Multi {
+  inherit windows64XamppMariaDb1011Multi
+    constructor {environment} {
+        chain $environment
+    } {
+        set version [versions::get "MariaDB" "11"]
+        set tarballName mariadb-${version}-winx64.zip
+        set pathName mariadb-${version}-winx64
+    }
+}
+
+# xampp-mariadbdata-win64-10.11 was created with MariaDB 10.11, install it
+# into that branch only
+::itcl::class windows64XamppMysqlData1011Multi {
+  inherit windowsXamppMysqlData
+    protected variable dataBranch 10.11
+    constructor {environment} {
+        chain $environment
+    } {
+    }
+    public method install {} {
+        windowsXamppComponent::install
+        set mysqlDir [file join $xamppoutputdir mysql-versions $dataBranch]
+        file delete -force [file join $mysqlDir data]
+        file copy -force [file join [$be cget -src] mysqldata] [file join $mysqlDir data]
+        file copy -force [file join [$be cget -src] mysqldata] [file join $mysqlDir backup]
+        copyFilesFromWorkspace
+    }
+}
+
+# Final layout step, it must run after every PHP add-on component
+::itcl::class windows64XamppMultiVersionsLayout {
+  inherit windowsXamppComponent
+    constructor {environment} {
+        chain $environment
+    } {
+        set name windows64XamppMultiVersionsLayout
+        set version 1
+        set licenseRelativePath {}
+        set tarballName {}
+    }
+    public method findTarball {{file {}}} {
+        return ""
+    }
+    public method extract {} {}
+    public method getTextFiles {} {}
+    public method install {} {
+        chain
+        mergeSharedPhpAddons
+        copyDefaultPhpRuntimeLibraries
+        removeDuplicatedSqliteLoadFile
+        writeVersionedRelocationList
+    }
+    protected method mergeSharedPhpAddons {} {
+        set staging [file join $xamppoutputdir php]
+        if {![file exists $staging]} {
+            return
+        }
+        foreach branch $::xamppmulti::phpBranches {
+            ::xamppmulti::mergeDirectory $staging [file join $xamppoutputdir php-versions $branch]
+        }
+        file delete -force $staging
+    }
+    # Every PHP branch copied its libraries into apache/bin, make sure the
+    # default branch ones win (xampp-switch copies them again on each switch)
+    protected method copyDefaultPhpRuntimeLibraries {} {
+        set defaultPhpDir [file join $xamppoutputdir php-versions [::xamppmulti::defaultPhpBranch]]
+        foreach f [glob -nocomplain -directory $defaultPhpDir icu*.dll libsasl.dll libssh2.dll] {
+            file copy -force $f [file join $xamppoutputdir apache bin]
+        }
+    }
+    # windows64XamppPhp8 adds this LoadFile line once per installed PHP branch
+    protected method removeDuplicatedSqliteLoadFile {} {
+        set conf [file join $xamppoutputdir apache conf extra httpd-xampp.conf]
+        set text [xampptcl::file::read $conf]
+        regsub -all {(LoadFile "/xampp/php/libsqlite3\.dll"\r?\n)+} $text {\1} text
+        xampptcl::file::write $conf $text
+    }
+    protected method writeVersionedRelocationList {} {
+        set incFile [file join $xamppoutputdir install xamppbasic.inc]
+        xampptcl::file::write $incFile [::xamppmulti::versionedRelocationList [xampptcl::file::read $incFile]]
+    }
+}
+
+::itcl::class windows64XamppInstallerMultiStack {
+    inherit windows64XamppInstallerPhp84Stack
+       constructor {environment} {
+        chain $environment
+       } {
+           # The default branch goes first so readme_*.txt report its versions
+           replaceComponent windows64XamppMariaDb {windows64XamppMariaDb1011Multi windows64XamppMariaDb118Multi}
+           replaceComponent windowsXamppMysqlData windows64XamppMysqlData1011Multi
+           replaceComponent windows64XamppPhp84 {windows64XamppPhp84Multi windows64XamppPhp82Multi windows64XamppPhp83Multi windows64XamppPhp85Multi}
+           replaceComponent windowsXamppStandardPhp84 {windows64XamppMultiVersionsLayout windowsXamppStandardPhp84}
+    }
+}
+
 
 ::itcl::class windows64XamppPortableInstallerStack {
     inherit stack
